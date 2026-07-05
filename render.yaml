@@ -21,3 +21,5 @@ services:
         fromDatabase:
           name: estaciona-bariloche-db
           property: connectionString
+
+# render.yaml v3 - sin preDeployCommand (plan free)
