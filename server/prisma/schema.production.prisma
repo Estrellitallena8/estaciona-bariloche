@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  nombre       String
+  telefono     String    @unique
+  email        String?   @unique
+  passwordHash String
+  esInspector  Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  vehiculos    Vehicle[]
+  sesiones     ParkingSession[]
+}
+
+model Vehicle {
+  id        String   @id @default(cuid())
+  patente   String
+  alias     String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  sesiones  ParkingSession[]
+
+  @@unique([userId, patente])
+}
+
+// Zonas tarifadas de estacionamiento medido de San Carlos de Bariloche
+model Zone {
+  id              String   @id @default(cuid())
+  codigo          String   @unique // ej: "Z1-CENTRO"
+  nombre          String   // ej: "Centro Cívico"
+  descripcion     String?
+  tarifaPorHora   Float    // en ARS
+  toleranciaMin   Int      @default(10)
+  maxHorasContinuas Int    @default(4)
+  colorHex        String  @default("#2563eb")
+  horarioDesde    String  @default("09:00")
+  horarioHasta    String  @default("21:00")
+  diasServicio    String  @default("Lun a Sáb") // texto informativo
+  activo          Boolean @default(true)
+
+  spots           ParkingSpot[]
+  sesiones        ParkingSession[]
+}
+
+// Un "parquímetro virtual": cartel/pegatina físico con QR + tag NFC en la vía pública
+model ParkingSpot {
+  id        String   @id @default(cuid())
+  codigo    String   @unique // ej: "MOR-014" (cartel visible en la calle)
+  zoneId    String
+  zone      Zone     @relation(fields: [zoneId], references: [id])
+  calle     String
+  altura    String?
+  lat       Float
+  lng       Float
+  qrToken   String   @unique // token embebido en la URL del QR
+  nfcTagId  String   @unique // id lógico grabado en el tag NFC
+  activo    Boolean  @default(true)
+
+  sesiones  ParkingSession[]
+}
+
+// estado: PENDIENTE_PAGO | ACTIVA | EXPIRADA | CANCELADA (SQLite no soporta enums nativos)
+model ParkingSession {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  vehicleId       String
+  vehicle         Vehicle       @relation(fields: [vehicleId], references: [id])
+  zoneId          String
+  zone            Zone          @relation(fields: [zoneId], references: [id])
+  spotId          String
+  spot            ParkingSpot   @relation(fields: [spotId], references: [id])
+
+  inicio          DateTime?
+  fin             DateTime?
+  duracionMinutos Int
+  costo           Float
+  estado          String        @default("PENDIENTE_PAGO")
+  origen          String        @default("QR") // QR | NFC
+  ticketToken     String        @unique // token corto para el QR del ticket (validación por inspectores)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  pago            Payment?
+}
+
+// estado: PENDIENTE | APROBADO | RECHAZADO (SQLite no soporta enums nativos)
+model Payment {
+  id            String        @id @default(cuid())
+  sessionId     String        @unique
+  session       ParkingSession @relation(fields: [sessionId], references: [id])
+  monto         Float
+  metodo        String        @default("mercadopago") // mercadopago | demo
+  estado        String        @default("PENDIENTE")
+  mpPreferenceId String?
+  mpPaymentId    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}

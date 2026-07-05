@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.env.local
+server/prisma/dev.db
+server/prisma/dev.db-journal
+server/qr-output
+web/dev-dist
+*.log
