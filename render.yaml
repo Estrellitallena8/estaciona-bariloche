@@ -5,10 +5,11 @@ databases:
 services:
   - type: web
     name: estaciona-bariloche-api
-    runtime: node
+    env: node
     plan: free
     rootDir: server
-    buildCommand: npm install --include=dev && cp prisma/schema.production.prisma prisma/schema.prisma && npx prisma generate && npx prisma db push --accept-data-loss && npm run build && npm run seed
+    buildCommand: npm install --include=dev && cp prisma/schema.production.prisma prisma/schema.prisma && npx prisma generate && npm run build
+    preDeployCommand: npx prisma db push --accept-data-loss && npm run seed
     startCommand: npm start
     envVars:
       - key: JWT_SECRET
